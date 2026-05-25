@@ -1,0 +1,82 @@
+name: Build SINFON Mac
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install transparent-background==1.3.4 torch==2.2.2 Pillow==11.2.1 numpy==1.26.4
+
+      - name: Download model
+        run: |
+          mkdir -p models
+          python -c "
+          import os, shutil
+          src = os.path.expanduser('~/.transparent-background/ckpt_base.pth')
+          if os.path.isfile(src):
+              shutil.copy2(src, 'models/ckpt_base.pth')
+              print('Model copied:', os.path.getsize('models/ckpt_base.pth'))
+          else:
+              print('Model not found, trying download...')
+              from transparent_background import Remover
+              r = Remover(mode='base')
+              if os.path.isfile(src):
+                  shutil.copy2(src, 'models/ckpt_base.pth')
+                  print('Model downloaded and copied')
+          "
+
+      - name: Create embedded Python
+        run: |
+          mkdir -p python-embed/bin
+          mkdir -p python-embed/lib
+
+          # Copy Python binary
+          PYTHON_PATH=$(which python3)
+          cp $PYTHON_PATH python-embed/bin/python3
+          chmod +x python-embed/bin/python3
+
+          # Copy Python lib
+          PYTHON_LIB=$(python3 -c "import sys; print(sys.prefix)")
+          cp -R $PYTHON_LIB/lib/python3.10 python-embed/lib/
+
+          # Copy site-packages with all dependencies
+          SITE=$(python3 -c "import site; print(site.getsitepackages()[0])")
+          cp -R $SITE python-embed/lib/python3.10/
+
+          # Fix torch lib paths
+          echo "Embedded Python created"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Build Mac DMG
+        run: npm run dist:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: SINFON-Mac
+          path: release/*.dmg
+          retention-days: 30
+
+      - name: Get DMG size
+        run: ls -lh release/*.dmg || echo "DMG not found"

@@ -1,0 +1,87 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SINFON</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;color:#eee;font-family:Segoe UI,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:30px}
+h1{font-size:32px;margin-bottom:5px;color:#00d4ff;letter-spacing:4px}
+p{color:#555;margin-bottom:20px;font-size:13px}
+.drop{width:500px;height:200px;border:3px dashed #00d4ff;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#00d4ff;cursor:pointer;transition:all .3s;background:#0a0a1a}
+.drop:hover,.drop.over{background:#00d4ff11;border-color:#00ff88}
+.preview{display:flex;gap:20px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.preview img{max-width:400px;max-height:400px;border-radius:12px;border:2px solid #222}
+.btn{margin-top:15px;padding:12px 30px;background:#00d4ff;color:#000;border:none;border-radius:8px;font-size:16px;cursor:pointer;display:none;font-weight:bold}
+.btn:hover{background:#00ff88}
+.status{margin-top:10px;color:#555;font-size:13px}
+.spinner{display:none;width:30px;height:30px;border:3px solid #222;border-top:3px solid #00d4ff;border-radius:50%;animation:spin 1s linear infinite;margin-top:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<h1>SINFON</h1>
+<p>Fondo transparente con IA avanzada</p>
+<div class="drop" id="drop">Seleccionar imagen</div>
+<input type="file" id="file" accept="image/*" hidden>
+<div class="spinner" id="spinner"></div>
+<div class="status" id="status"></div>
+<div class="preview" id="preview"></div>
+<a class="btn" id="save" download="">Guardar PNG</a>
+<script>
+var drop=document.getElementById('drop');
+var file=document.getElementById('file');
+var spinner=document.getElementById('spinner');
+var status=document.getElementById('status');
+var preview=document.getElementById('preview');
+var saveBtn=document.getElementById('save');
+drop.onclick=function(){file.click()};
+drop.ondragover=function(e){e.preventDefault();drop.classList.add('over')};
+drop.ondragleave=function(){drop.classList.remove('over')};
+drop.ondrop=function(e){e.preventDefault();drop.classList.remove('over');handleFile(e.dataTransfer.files[0])};
+file.onchange=function(){if(file.files[0])handleFile(file.files[0])};
+function handleFile(f){
+  var originalName=f.name.replace(/\.[^.]+$/,'')+'_sin_fondo.png';
+  spinner.style.display='block';
+  status.textContent='Procesando con InSPyReNet...';
+  preview.innerHTML='';
+  saveBtn.style.display='none';
+  saveBtn.download=originalName;
+  var reader=new FileReader();
+  reader.onload=function(){
+    var img=new Image();
+    img.src=reader.result;
+    img.onload=function(){
+      var canvas=document.createElement('canvas');
+      canvas.width=img.width;canvas.height=img.height;
+      canvas.getContext('2d').drawImage(img,0,0);
+      canvas.toBlob(function(blob){
+        var t0=performance.now();
+        fetch('http://127.0.0.1:34568/remove',{method:'POST',body:blob})
+        .then(function(r){return r.blob()})
+        .then(function(result){
+          var t1=performance.now();
+          var url=URL.createObjectURL(result);
+          var beforeImg=document.createElement('img');
+          beforeImg.src=reader.result;
+          var afterImg=document.createElement('img');
+          afterImg.src=url;
+          preview.appendChild(beforeImg);
+          preview.appendChild(afterImg);
+          saveBtn.href=url;
+          saveBtn.style.display='inline-block';
+          spinner.style.display='none';
+          status.textContent='Listo en '+((t1-t0)/1000).toFixed(1)+'s';
+        })
+        .catch(function(e){
+          spinner.style.display='none';
+          status.textContent='Error: '+e.message;
+        });
+      },f.type);
+    };
+  };
+  reader.readAsDataURL(f);
+}
+</script>
+</body>
+</html>

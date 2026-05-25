@@ -1,0 +1,68 @@
+{
+  "name": "sinfon",
+  "version": "1.0.0",
+  "private": true,
+  "main": "public/electron.js",
+  "homepage": "./",
+  "description": "IA sin conexion - Quitar fondo con IA avanzada",
+  "author": "Rene",
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').copyFileSync('index.html','build/index.html')\"",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist": "npm run build && electron-builder --win --mac --publish never"
+  },
+  "build": {
+    "appId": "com.sinfon.app",
+    "productName": "SINFON",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "public/electron.js"
+    ],
+    "extraResources": [
+      {
+        "from": "build",
+        "to": "build"
+      },
+      {
+        "from": "python-embed",
+        "to": "python-embed"
+      },
+      {
+        "from": "scripts",
+        "to": "scripts"
+      },
+      {
+        "from": "models",
+        "to": "models"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "SINFON.ICO"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "SINFON.ICO",
+      "category": "public.app-category.photography"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "dmg": {
+      "title": "SINFON",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
+  }
+}

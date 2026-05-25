@@ -1,0 +1,8 @@
+node_modules/
+dist/
+release/
+*.pyc
+__pycache__/
+.DS_Store
+python-embed/
+models/
