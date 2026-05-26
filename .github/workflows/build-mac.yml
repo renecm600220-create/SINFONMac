@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-mac:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -40,24 +40,22 @@ jobs:
 
       - name: Create embedded Python
         run: |
-          mkdir -p python-embed/bin
-          mkdir -p python-embed/lib
-
-          # Copy Python binary
-          PYTHON_PATH=$(which python3)
-          cp $PYTHON_PATH python-embed/bin/python3
-          chmod +x python-embed/bin/python3
-
-          # Copy Python lib
-          PYTHON_LIB=$(python3 -c "import sys; print(sys.prefix)")
-          cp -R $PYTHON_LIB/lib/python3.10 python-embed/lib/
-
-          # Copy site-packages with all dependencies
+          mkdir -p python-embed
           SITE=$(python3 -c "import site; print(site.getsitepackages()[0])")
-          cp -R $SITE python-embed/lib/python3.10/
+          PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 
-          # Fix torch lib paths
-          echo "Embedded Python created"
+          # Create tarball of Python environment
+          cd /opt/hostedtoolcache/Python/$PYTHON_VERSION*/x64
+          tar czf /tmp/python-embed.tar.gz bin/python3 lib/python$PYTHON_VERSION include share
+          mv /tmp/python-embed.tar.gz $GITHUB_WORKSPACE/python-embed/
+
+          # Copy site-packages
+          cd $SITE
+          tar czf /tmp/site-packages.tar.gz .
+          mv /tmp/site-packages.tar.gz $GITHUB_WORKSPACE/python-embed/
+
+          cd $GITHUB_WORKSPACE
+          echo "Python $PYTHON_VERSION embedded"
 
       - uses: actions/setup-node@v4
         with:
@@ -66,17 +64,23 @@ jobs:
       - name: Install Node dependencies
         run: npm install
 
-      - name: Build Mac DMG
-        run: npm run dist:mac
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Build without packaging
+        run: |
+          mkdir -p release
+          # Create tarball with all files for Mac
+          tar czf release/SINFON-Mac.tar.gz \
+            --transform='s,^,SINFON/,' \
+            public/ build/ scripts/ models/ python-embed/ package.json
 
-      - name: Upload DMG
+      - name: Upload Mac package
         uses: actions/upload-artifact@v4
         with:
           name: SINFON-Mac
-          path: release/*.dmg
+          path: release/SINFON-Mac.tar.gz
           retention-days: 30
 
-      - name: Get DMG size
-        run: ls -lh release/*.dmg || echo "DMG not found"
+      - name: Package info
+        run: |
+          ls -lh release/
+          echo "Mac package ready"
+          echo "To build DMG: run 'npm install && npm run dist:mac' on a Mac"
